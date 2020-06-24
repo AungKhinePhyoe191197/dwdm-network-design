@@ -2,6 +2,9 @@ from __future__ import print_function, unicode_literals
 import regex
 
 import six
+import os
+clear = lambda: os.system('cls')
+from tabulate import tabulate
 from pyfiglet import figlet_format
 from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
                         style_from_dict)
@@ -27,7 +30,7 @@ style = style_from_dict({
     Token.Question: '',
 })
 
-def log(string, color, font="slant", figlet=False):
+def log(string, color="white", font="slant", figlet=False):
     if colored:
         if not figlet:
             six.print_(colored(string, color))
@@ -127,10 +130,37 @@ def askQuestions(questions):
     return prompt(questions, style=style)
 
 def main():
-    log(chr(27) + "[2J", color="white")
+    clear()
     log("Power Budget", color="blue", figlet=True)
     log("Welcome to power budget", color="green")
-    log("This program is for calculating power budget of DWDM transmission Link (Distance of 80 km to 220 km", color="white")
+    log("This program is for calculating power budget of DWDM transmission Link (Distance of 80 km to 220 km)", color="white")
+    log("")
+    log("In Basic DWDM long distance link, transceiver, MDU, Directionless ROADM and Degree ROADM are both on the Transmitting and Receiving Sites.", color="white")
+    log("B is a booster amplifier.")
+    log("P is a pree amplifier.")
+    log("")
+    log("There is an add/drop station between the transmission link. The length of the L2 should be equal or longer than the L1.")
+    log("")
+    log("Before the calculation starts, please choose and input the specification value of the devices.")
+    log("")
+    log("Fiber Specification", color="green")
+    log("This table shows the general value of SM fiber specification.")
+    log(tabulate([['Single Mode (SM)', 0.275, 17]], headers=['Fiber Type', 'Attenuation (dB/km)', 'Dispersion coefficient (ps/nm-km)'], tablefmt='orgtbl'), color="blue")
+    prompt([
+        {
+            'type': 'confirm',
+            'name': 'confirm_fiber_spec_change',
+            'message': 'Do you want to change fiber specification'
+        },
+        {
+            'type': 'list',
+            'name': 'fiber_spec_choice',
+            'when': lambda answers: answers.get("confirm_fiber_spec_change", True),
+            'message': 'Choose:',
+            'choices': ['Attenuation', 'Dispersion coefficient'],
+            'filter': lambda val: val.lower()
+        }
+    ], style=style)
 
 if __name__ == "__main__":
     main()
