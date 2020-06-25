@@ -129,6 +129,36 @@ questions = [
 def askQuestions(questions):
     return prompt(questions, style=style)
 
+def askFiberSpec():
+    log("")
+    log("Fiber Specification", color="green")
+    log("This table shows the general value of SM fiber specification.")
+    log("")
+    log(tabulate([['Single Mode (SM)', 0.275, 17]], headers=['Fiber Type', 'Attenuation (dB/km)', 'Dispersion coefficient (ps/nm-km)'], tablefmt='orgtbl'), color="blue")
+    prompt([
+        {
+            'type': 'confirm',
+            'name': 'fiber_spec_change',
+            'message': 'Do you want to change fiber specification'
+        },
+        {
+            'type': 'list',
+            'name': 'fiber_spec_choice',
+            'when': lambda answers: answers.get("fiber_spec_change", True),
+            'message': 'Choose:',
+            'choices': ['Attenuation', 'Dispersion coefficient'],
+            'filter': lambda val: val.lower()
+        },
+        {
+            'type': 'input',
+            'name': 'fiber_spec_attenuation',
+            'when': lambda answers: answers.get("fiber_spec_change", True) and answers.get("fiber_spec_choice").lower() == "attenuation",
+            'message': 'Enter the value:',
+            'default': '0.275',
+            # TODO : validator
+        }
+    ], style=style)
+
 def main():
     clear()
     log("Power Budget", color="blue", figlet=True)
@@ -142,25 +172,7 @@ def main():
     log("There is an add/drop station between the transmission link. The length of the L2 should be equal or longer than the L1.")
     log("")
     log("Before the calculation starts, please choose and input the specification value of the devices.")
-    log("")
-    log("Fiber Specification", color="green")
-    log("This table shows the general value of SM fiber specification.")
-    log(tabulate([['Single Mode (SM)', 0.275, 17]], headers=['Fiber Type', 'Attenuation (dB/km)', 'Dispersion coefficient (ps/nm-km)'], tablefmt='orgtbl'), color="blue")
-    prompt([
-        {
-            'type': 'confirm',
-            'name': 'confirm_fiber_spec_change',
-            'message': 'Do you want to change fiber specification'
-        },
-        {
-            'type': 'list',
-            'name': 'fiber_spec_choice',
-            'when': lambda answers: answers.get("confirm_fiber_spec_change", True),
-            'message': 'Choose:',
-            'choices': ['Attenuation', 'Dispersion coefficient'],
-            'filter': lambda val: val.lower()
-        }
-    ], style=style)
+    askFiberSpec()
 
 if __name__ == "__main__":
     main()
