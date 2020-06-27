@@ -5,20 +5,10 @@ import six
 import os
 clear = lambda: os.system('cls')
 from tabulate import tabulate
-from pyfiglet import figlet_format
 from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
                         style_from_dict)
 
-try:
-    import colorama
-    colorama.init()
-except ImportError:
-    colorama = None
-
-try:
-    from termcolor import colored
-except ImportError:
-    colored = None
+from utils import log
 
 style = style_from_dict({
     Token.QuestionMark: '#fac731 bold',
@@ -29,16 +19,6 @@ style = style_from_dict({
     Token.Pointer: '#673ab7 bold',
     Token.Question: '',
 })
-
-def log(string, color="white", font="slant", figlet=False):
-    if colored:
-        if not figlet:
-            six.print_(colored(string, color))
-        else:
-            six.print_(colored(figlet_format(
-                string, font=font), color))
-    else:
-        six.print_(string)
 
 class NumChannelValidator(Validator):
     def validate(self, document):
@@ -130,11 +110,16 @@ def askQuestions(questions):
     return prompt(questions, style=style)
 
 def askFiberSpec():
+    table_fiber_spec = {
+        'Fiber Type': ['Single Mode (SM)'],
+        'Attenuation (dB/km)': [0.275],
+        'Dispersion coefficient (ps/nm-km)': [17]
+    }
     log("")
     log("Fiber Specification", color="green")
     log("This table shows the general value of SM fiber specification.")
     log("")
-    log(tabulate([['Single Mode (SM)', 0.275, 17]], headers=['Fiber Type', 'Attenuation (dB/km)', 'Dispersion coefficient (ps/nm-km)'], tablefmt='orgtbl'), color="blue")
+    log(tabulate([[item[0] for item in table_fiber_spec.values()]], headers=table_fiber_spec.keys(), tablefmt='orgtbl'), color="blue")
     prompt([
         {
             'type': 'confirm',
