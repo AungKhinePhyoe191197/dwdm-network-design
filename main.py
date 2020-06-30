@@ -1,14 +1,15 @@
 from __future__ import print_function, unicode_literals
 import regex
+import pandas as pd
 
 import six
 import os
 clear = lambda: os.system('cls')
 from tabulate import tabulate
 from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
-                        style_from_dict)
+                        style_from_dict, Separator)
 
-from utils import log
+from utils import log, generate_questions
 
 style = style_from_dict({
     Token.QuestionMark: '#fac731 bold',
@@ -60,89 +61,20 @@ class NumberValidator(Validator):
                 message='Please enter a number',
                 cursor_position=len(document.text))  # Move cursor to end
 
-questions = [
-    {
-        'type': 'input',
-        'name': 'num_channel',
-        'message': 'Number of channel',
-        'validate': NumChannelValidator,
-        'filter': lambda val: int(val)
-    },
-    {
-        'type': 'input',
-        'name': 'amplifier_max_output_power',
-        'message': 'Maximum output power of amplifier in dBm',
-        'validate': NumberValidator,
-        'filter': lambda val: int(val),
-        'default': '20'
-    },
-    {
-        'type': 'input',
-        'name': 'amplifier_gain_min',
-        'message': 'Minimum gain of amplifier',
-        'validate': NumberValidator,
-        'filter': lambda val: int(val)
-    },
-    {
-        'type': 'input',
-        'name': 'amplifier_gain_max',
-        'message': 'Maximum gain of amplifier',
-        'validate': NumberValidator,
-        'filter': lambda val: int(val)
-    },
-    {
-        'type': 'input',
-        'name': 'length_line_1',
-        'message': 'Length of line 1',
-        'validate': NumberValidator,
-        'filter': lambda val: int(val)
-    },
-    {
-        'type': 'input',
-        'name': 'length_line_2',
-        'message': 'Length of line 2',
-        'validate': NumberValidator,
-        'filter': lambda val: int(val)
-    }
-]
-
-def askQuestions(questions):
-    return prompt(questions, style=style)
-
 def askFiberSpec():
-    table_fiber_spec = {
+    df_fiber_spec = pd.DataFrame({
         'Fiber Type': ['Single Mode (SM)'],
         'Attenuation (dB/km)': [0.275],
         'Dispersion coefficient (ps/nm-km)': [17]
-    }
+    })
     log("")
     log("Fiber Specification", color="green")
     log("This table shows the general value of SM fiber specification.")
     log("")
-    log(tabulate([[item[0] for item in table_fiber_spec.values()]], headers=table_fiber_spec.keys(), tablefmt='orgtbl'), color="blue")
-    prompt([
-        {
-            'type': 'confirm',
-            'name': 'fiber_spec_change',
-            'message': 'Do you want to change fiber specification'
-        },
-        {
-            'type': 'list',
-            'name': 'fiber_spec_choice',
-            'when': lambda answers: answers.get("fiber_spec_change", True),
-            'message': 'Choose:',
-            'choices': ['Attenuation', 'Dispersion coefficient'],
-            'filter': lambda val: val.lower()
-        },
-        {
-            'type': 'input',
-            'name': 'fiber_spec_attenuation',
-            'when': lambda answers: answers.get("fiber_spec_change", True) and answers.get("fiber_spec_choice").lower() == "attenuation",
-            'message': 'Enter the value:',
-            'default': '0.275',
-            # TODO : validator
-        }
-    ], style=style)
+    log(tabulate(df_fiber_spec.to_numpy(), headers=df_fiber_spec.columns, tablefmt='orgtbl'), color="blue")
+    log("")
+    answers = prompt(generate_questions(df_fiber_spec, [1,2]), style=style)
+    print(answers)
 
 def main():
     clear()
