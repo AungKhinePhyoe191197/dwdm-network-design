@@ -9,7 +9,7 @@ from tabulate import tabulate
 from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
                         style_from_dict, Separator)
 
-from utils import log, generate_questions
+from utils import log, log_df, generate_questions, update_answers
 
 style = style_from_dict({
     Token.QuestionMark: '#fac731 bold',
@@ -20,6 +20,12 @@ style = style_from_dict({
     Token.Pointer: '#673ab7 bold',
     Token.Question: '',
 })
+
+df_fiber_spec = pd.DataFrame({
+    'Fiber Type': ['Single Mode (SM)'],
+    'Attenuation (dB/km)': [0.275],
+    'Dispersion coefficient (ps/nm-km)': [17]
+}).set_index('Fiber Type')
 
 class NumChannelValidator(Validator):
     def validate(self, document):
@@ -61,35 +67,38 @@ class NumberValidator(Validator):
                 message='Please enter a number',
                 cursor_position=len(document.text))  # Move cursor to end
 
-def askFiberSpec():
-    df_fiber_spec = pd.DataFrame({
-        'Fiber Type': ['Single Mode (SM)'],
-        'Attenuation (dB/km)': [0.275],
-        'Dispersion coefficient (ps/nm-km)': [17]
-    })
+def logAndModify(df, title, desc):
+    log(title, color="green")
+    log(desc)
     log("")
-    log("Fiber Specification", color="green")
-    log("This table shows the general value of SM fiber specification.")
+    log_df(df_fiber_spec)
     log("")
-    log(tabulate(df_fiber_spec.to_numpy(), headers=df_fiber_spec.columns, tablefmt='orgtbl'), color="blue")
+    answers = prompt(generate_questions(df), style=style)
+    if update_answers(df, answers):
+        log("")
+        log("The table is updated to")
+        log_df(df_fiber_spec)
     log("")
-    answers = prompt(generate_questions(df_fiber_spec, [1,2]), style=style)
-    print(answers)
 
-def main():
-    clear()
+def logIntro():
     log("Power Budget", color="blue", figlet=True)
     log("Welcome to power budget", color="green")
-    log("This program is for calculating power budget of DWDM transmission Link (Distance of 80 km to 220 km)", color="white")
+    log("This program is for calculating power budget of DWDM transmission Link (Link Distance of 80 km to 220 km).", color="white")
     log("")
     log("In Basic DWDM long distance link, transceiver, MDU, Directionless ROADM and Degree ROADM are both on the Transmitting and Receiving Sites.", color="white")
     log("B is a booster amplifier.")
-    log("P is a pree amplifier.")
+    log("P is a pre amplifier.")
     log("")
     log("There is an add/drop station between the transmission link. The length of the L2 should be equal or longer than the L1.")
     log("")
     log("Before the calculation starts, please choose and input the specification value of the devices.")
-    askFiberSpec()
+    log("")
+    
+
+def main():
+    clear()
+    logIntro()
+    logAndModify(df_fiber_spec, "Fiber Specification", "This table show the general value of SM fiber specification.")
 
 if __name__ == "__main__":
     main()

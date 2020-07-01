@@ -1,4 +1,5 @@
 import six
+from tabulate import tabulate
 from pyfiglet import figlet_format
 
 try:
@@ -12,9 +13,6 @@ try:
 except ImportError:
     colored = None
 
-def trim(s):
-    return s.replace(' ', '')
-
 def log(string, color="white", font="slant", figlet=False):
     if colored:
         if not figlet:
@@ -25,17 +23,19 @@ def log(string, color="white", font="slant", figlet=False):
     else:
         six.print_(string)
 
-def generate_questions(df, col_indices):
-    cols = df.columns[col_indices]
+def log_df(df):
+    log(tabulate(df, headers='keys', tablefmt='orgtbl'), color="blue")
+
+def generate_questions(df):
     questions = [
         {
             'type': 'checkbox',
             'name': 'checkbox',
             'message': 'Select:',
-            'choices': [{'name': col} for col in cols]
+            'choices': [{'name': col} for col in df.columns]
         }
     ]
-    for col in cols:
+    for col in df.columns:
         for val in df[col]:
             questions.append({
                 'type': 'input',
@@ -45,3 +45,11 @@ def generate_questions(df, col_indices):
                 'when': lambda answers, col=col: col in answers.get('checkbox')
             })
     return questions
+
+def update_answers(df, answers):
+    updated = False
+    for ans in answers:
+        if ans in df:
+            df[ans] = answers[ans]
+            updated = True
+    return updated
