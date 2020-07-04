@@ -1,6 +1,8 @@
 import six
 from tabulate import tabulate
 from pyfiglet import figlet_format
+from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
+                        style_from_dict, Separator)
 
 try:
     import colorama
@@ -23,33 +25,39 @@ def log(string, color="white", font="slant", figlet=False):
     else:
         six.print_(string)
 
-def log_df(df):
-    log(tabulate(df, headers='keys', tablefmt='orgtbl'), color="blue")
+def log_df(df, flag='tmp'):
+    if flag == 'tmp': 
+        log(tabulate(df, headers='keys', tablefmt='orgtbl'), color="blue")
+    elif flag == 'pmt':
+        log(tabulate(df, headers='keys', tablefmt='orgtbl'), color="green")
+    else:
+        log("log_df error", color="red")
 
 def generate_questions(df):
+    choices = []
+    for i in df.index:
+        choices.append(Separator(f'== {i} =='))
+        choices = choices + [{'name': f'{col}', 'value': f'{i} {col}'} for col in df.columns]
+    
     questions = [
         {
             'type': 'checkbox',
             'name': 'checkbox',
             'message': 'Select:',
-            'choices': [{'name': col} for col in df.columns]
+            'choices': choices
         }
     ]
+
     for col in df.columns:
-        for val in df[col]:
+        for i in df.index:
             questions.append({
                 'type': 'input',
-                'name': col,
-                'message': col,
-                'default': f'{val}',
-                'when': lambda answers, col=col: col in answers.get('checkbox')
+                'name': f'{i} {col}',
+                'message': f'{i} > {col}',
+                'default': f'{df.loc[i, col]}',
+                'when': lambda answers, col=col, i=i: f'{i} {col}' in answers.get('checkbox')
             })
     return questions
 
 def update_answers(df, answers):
-    updated = False
-    for ans in answers:
-        if ans in df:
-            df[ans] = answers[ans]
-            updated = True
-    return updated
+    print(answers)

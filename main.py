@@ -22,9 +22,9 @@ style = style_from_dict({
 })
 
 df_fiber_spec = pd.DataFrame({
-    'Fiber Type': ['Single Mode (SM)'],
-    'Attenuation (dB/km)': [0.275],
-    'Dispersion coefficient (ps/nm-km)': [17]
+    'Fiber Type': ['Single Mode (SM)', 'Multi Mode (MM)'],
+    'Attenuation (dB/km)': [0.275, 0.5],
+    'Dispersion coefficient (ps/nm-km)': [17, 20]
 }).set_index('Fiber Type')
 
 class NumChannelValidator(Validator):
@@ -74,10 +74,11 @@ def logAndModify(df, title, desc):
     log_df(df_fiber_spec)
     log("")
     answers = prompt(generate_questions(df), style=style)
-    if update_answers(df, answers):
-        log("")
-        log("The table is updated to")
-        log_df(df_fiber_spec)
+    update_answers(df, answers)
+    log("")
+    log("This table will be used for futher calculation", color='yellow')
+    log("")
+    log_df(df_fiber_spec, flag='pmt')
     log("")
 
 def logIntro():
