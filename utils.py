@@ -52,7 +52,7 @@ def generate_questions(df):
         for i in df.index:
             questions.append({
                 'type': 'input',
-                'name': f'{i} {col}',
+                'name': lambda i=i, col=col: (i, col),
                 'message': f'{i} > {col}',
                 'default': f'{df.loc[i, col]}',
                 'when': lambda answers, col=col, i=i: f'{i} {col}' in answers.get('checkbox')
@@ -60,4 +60,7 @@ def generate_questions(df):
     return questions
 
 def update_answers(df, answers):
-    print(answers)
+    for a in answers:
+        if callable(a):
+            i, col = a()
+            df.loc[i, col] = answers[a]

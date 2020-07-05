@@ -27,6 +27,33 @@ df_fiber_spec = pd.DataFrame({
     'Dispersion coefficient (ps/nm-km)': [17, 20]
 }).set_index('Fiber Type')
 
+df_insert_loss_spec_addrop_comm = pd.DataFrame({
+    'ROADM Degree': [2, 4, 8],
+    'MDU Loss (dB)': [14, 14, 14],
+    'Directionless ROADM (dB)': [4, 7, 7],
+    'Degree ROADM (dB)': [4, 7, 7]
+}).set_index('ROADM Degree')
+
+df_insert_loss_spec_comm_addrop = pd.DataFrame({
+    'ROADM Degree': [2, 4, 8],
+    'MDU Loss (dB)': [7, 7, 7],
+    'Directionless ROADM (dB)': [7, 9, 11],
+    'Degree ROADM (dB)': [7, 9, 11]
+}).set_index('ROADM Degree')
+
+df_edfa_spec = pd.DataFrame({
+    'Amplifier Power Types': [
+        'Flat Gain (FG)', 
+        'Gain Range Upper (G)',
+        'Gain Range Lower (G)', 
+        'Noise Figure (NF)', 
+        'Maximum Input Power (Pin Max)',
+        'Maximum Output Power (Pout Max)',
+        'Minimum Input Power (Pin Min)',
+        'Minimum Output Power (Pout Min)'],
+    'Power Values': [22, 30, 15, 5.5, 5, 20, -35, -5]
+})
+
 class NumChannelValidator(Validator):
     def validate(self, document):
         try:
@@ -68,17 +95,18 @@ class NumberValidator(Validator):
                 cursor_position=len(document.text))  # Move cursor to end
 
 def logAndModify(df, title, desc):
+    log('=' * 50)
     log(title, color="green")
     log(desc)
     log("")
-    log_df(df_fiber_spec)
+    log_df(df)
     log("")
     answers = prompt(generate_questions(df), style=style)
     update_answers(df, answers)
     log("")
     log("This table will be used for futher calculation", color='yellow')
     log("")
-    log_df(df_fiber_spec, flag='pmt')
+    log_df(df, flag='pmt')
     log("")
 
 def logIntro():
@@ -99,7 +127,14 @@ def logIntro():
 def main():
     clear()
     logIntro()
-    logAndModify(df_fiber_spec, "Fiber Specification", "This table show the general value of SM fiber specification.")
+    logAndModify(df_fiber_spec, "Fiber Specification",
+        "This table show the general value of SM fiber specification.")
+    logAndModify(df_insert_loss_spec_addrop_comm, "Insertion losses from add/drop port to common port",
+        "This table shown the general insertion losses from add/drop to common of MDU, \
+Directionless ROADM and Degree ROADM.")
+    logAndModify(df_insert_loss_spec_comm_addrop, "Insertion losses from common port to add/drop port",
+        "This table shown the general insertion losses common port to add/drop port of MDU, \
+Directionless ROADM and Degree ROADM.")
 
 if __name__ == "__main__":
     main()
