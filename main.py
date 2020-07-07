@@ -11,6 +11,12 @@ from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
 
 from utils import log, log_df, generate_questions, update_answers
 
+try:
+    from terminalsize import get_terminal_size
+    window_width, _ = get_terminal_size()
+except ImportError:
+    window_width = 100
+
 style = style_from_dict({
     Token.QuestionMark: '#fac731 bold',
     Token.Answer: '#4688f1 bold',
@@ -20,6 +26,8 @@ style = style_from_dict({
     Token.Pointer: '#673ab7 bold',
     Token.Question: '',
 })
+
+user_inputs = {}
 
 df_fiber_spec = pd.DataFrame({
     'Fiber Type': ['Single Mode (SM)', 'Multi Mode (MM)'],
@@ -52,7 +60,13 @@ df_edfa_spec = pd.DataFrame({
         'Minimum Input Power (Pin Min)',
         'Minimum Output Power (Pout Min)'],
     'Power Values': [22, 30, 15, 5.5, 5, 20, -35, -5]
-})
+}).set_index('Amplifier Power Types')
+
+df_dcm_spec = pd.DataFrame({
+    'DCU Modules': ['30 Km', '40 Km', '60 Km', '80 Km', '120 Km'],
+    'Dispersion Compensation (ps/nm)': [-510, -680, -1020, -1360, -2040],
+    'Insertion Loss (dB)': [4, 4, 4, 4, 4]
+}).set_index('DCU Modules')
 
 class NumChannelValidator(Validator):
     def validate(self, document):
@@ -94,9 +108,13 @@ class NumberValidator(Validator):
                 message='Please enter a number',
                 cursor_position=len(document.text))  # Move cursor to end
 
+def log_seperator(char):
+    log("")
+    log(char * window_width, delay=False)
+    log("")
+
 def logAndModify(df, title, desc):
-    log('=' * 50)
-    log(title, color="green")
+    log(f"(TABLE) {title}", color="green")
     log(desc)
     log("")
     log_df(df)
@@ -122,19 +140,67 @@ def logIntro():
     log("")
     log("Before the calculation starts, please choose and input the specification value of the devices.")
     log("")
-    
+
+def ask_transceiver_power_values():
+    log("Please add the transceiver power value in dB.")
+    answers = prompt([
+        {
+            'type': 'input',
+            'name': 'transmit_pow_min',
+            'message': 'Minimum Transmit Power (dB)'
+        },
+        {
+            'type': 'input',
+            'name': 'transmit_pow_max',
+            'message': 'Maximum Transmit Power (dB)'
+        },
+        {
+            'type': 'input',
+            'name': 'receive_pow_min',
+            'message': 'Minimum Receive Power (dB)'
+        },
+        {
+            'type': 'input',
+            'name': 'receive_pow_max',
+            'message': 'Maximum Receive Power (dB)'
+        }
+    ], style=style)
+    log("")
+    user_inputs.update(answers)
+
+def ask_connector_loss_value():
+    log("Please add the maximum connector loss value for the link")
+    answers = prompt([
+        {
+            'type': 'input',
+            'name': 'connector_loss_max',
+            'message': 'Maximum Connector Loss (dB)'
+        }
+    ])
+    log("")
+    user_inputs.update(answers)
 
 def main():
     clear()
     logIntro()
-    logAndModify(df_fiber_spec, "Fiber Specification",
+    logAndModify(df_fiber_spec, "Fiber Specification", 
         "This table show the general value of SM fiber specification.")
+    log_seperator("=")
     logAndModify(df_insert_loss_spec_addrop_comm, "Insertion losses from add/drop port to common port",
-        "This table shown the general insertion losses from add/drop to common of MDU, \
-Directionless ROADM and Degree ROADM.")
+        "This table shown the general insertion losses from add/drop to common of MDU, Directionless ROADM and Degree ROADM.")
+    log_seperator("=")
     logAndModify(df_insert_loss_spec_comm_addrop, "Insertion losses from common port to add/drop port",
-        "This table shown the general insertion losses common port to add/drop port of MDU, \
-Directionless ROADM and Degree ROADM.")
+        "This table shown the general insertion losses common port to add/drop port of MDU, Directionless ROADM and Degree ROADM.")
+    log_seperator("=")
+    ask_transceiver_power_values()
+    log_seperator("=")
+    ask_connector_loss_value()
+    log_seperator("=")
+    logAndModify(df_edfa_spec, "EDFA power specification",
+        "This table shown the general value of EDFA power specification.")
+    log_seperator("=")
+    logAndModify(df_dcm_spec, "DCM specificatoin",
+        "This table show the general types and values of DCM.")
 
 if __name__ == "__main__":
     main()
