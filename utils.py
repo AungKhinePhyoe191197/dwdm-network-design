@@ -16,6 +16,11 @@ try:
 except ImportError:
     colored = None
 
+g_delay = True
+def init(is_delay):
+    global g_delay
+    g_delay = is_delay
+
 def log(string, color="white", font="slant", figlet=False, delay=True):
     if colored:
         if not figlet:
@@ -26,7 +31,7 @@ def log(string, color="white", font="slant", figlet=False, delay=True):
     else:
         six.print_(string)
     # wait to read by user
-    if delay:
+    if delay and g_delay:
         sleep(len(string)*0.05)
 
 def log_df(df, flag='tmp'):
