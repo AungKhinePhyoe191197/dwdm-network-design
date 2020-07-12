@@ -40,7 +40,7 @@ def log_df(df, flag='tmp'):
     elif flag == 'pmt':
         log(tabulate(df, headers='keys', tablefmt='orgtbl'), color="yellow", delay=False)
     else:
-        log("log_df error", color="red")
+        log("log_df error : unknown flag", color="red")
 
 def generate_questions(df):
     choices = []
