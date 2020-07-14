@@ -35,9 +35,15 @@ constraints = {
     'l1_min': 40,
     'l1_max': 120,
     'l2_min': 40,
-    'l2_max': 120
+    'l2_max': 120,
+    'fiber_attenuation_coef_max': 0.2,
+    'link_attenuation_coef_max': 0.275,
+    'safety_margin_min': 3,
+    'safety_margin_max': 5
 }
-user_inputs = {}
+user_inputs = {
+    'fiber_class': 'G.625.D'
+}
 calc_outputs = {}
 
 df_fiber_spec = pd.DataFrame({
@@ -114,9 +120,6 @@ df_fiber_g625d = pd.DataFrame({
 }).set_index('Cable No')
 
 fiber_classes = {
-    'G.625.A': df_fiber_g625a,
-    'G.625.B': df_fiber_g625b,
-    'G.625.C': df_fiber_g625c,
     'G.625.D': df_fiber_g625d,
 }
 
@@ -193,7 +196,7 @@ def logAndModify(df, title, desc):
     log_df(df, flag='pmt')
     log("")
 
-def logIntro():
+def logIntro(): 
     log("Power Budget", color="blue", figlet=True)
     log("Welcome to power budget", color="green")
     log("This program is for calculating power budget of DWDM transmission Link (Link Distance of 80 km to 220 km).", color="white")
@@ -205,7 +208,7 @@ def logIntro():
     log("P is a pre amplifier.")
     log("Line amplifier")
     log("")
-    log("Amplifier used in this calculation are fixed gain EDFA amplifier.")
+    log("There is a Degree ROADM station for changing the data traffic between the link.")
     log("The length of L1 should be in the range between 40 km and 120 km.")
     log("The length of L2 should be in the range between 40 km and 120 km.")
     log("")
@@ -286,6 +289,8 @@ def ask_line_lengths():
 def ask_option_1():
     log("Splicing Loss", color="green")
     log_df(df_splic_loss)
+    log("The maximum value of the splicing loss is ≤ 0.5 dB.")
+    log("(General splicing loss value is around 0.02 dB)")
     answers = prompt([
         {
             'type': 'input',
@@ -306,12 +311,14 @@ def ask_option_1():
     log("")
     log("Connector Loss", color="green")
     log_df(df_connector_loss)
+    log("(General connector loss value is around 0.5 dB)")
     answers = prompt([
         {
-            'type': 'list',
-            'name': 'connector_grade',
-            'message': 'Please choose the connector grade:',
-            'choices': [i for i in df_connector_loss.index],
+            'type': 'input',
+            'name': 'connector_loss',
+            'message': 'Each connector loss value =',
+            'filter': lambda val: float(val),
+            'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= max(df_connector_loss['Maximum Attenuation Value (dB)']) or 'The value must be between 0 and %.1f' % (max(df_connector_loss['Maximum Attenuation Value (dB)']))
         },
         {
             'type': 'input',
@@ -329,11 +336,16 @@ def ask_option_1():
         log("ITU-T " + c + " Cable attributes")
         log_df(fiber_classes[c], flag='pmt')
         log("")
+    log("Table show the cable attenuation value of G.652.D.")
+    log("Fiber attenuation value for the DWDM link should not exceed than %.1f dB/km" % (
+        constraints['fiber_attenuation_coef_max']
+    ))
     answers = prompt([{
-        'type': 'list',
-        'name': 'fiber_class',
-        'message': 'Please choose the cable class for calculation',
-        'choices': [c for c in fiber_classes]
+        'type': 'input',
+        'name': 'fiber_attenuation_coef',
+        'message': 'Please input the fiber attenuation coefficient value =',
+        'filter': lambda val: float(val),
+        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= constraints['fiber_attenuation_coef_max'] or 'The value must be between 0 and %.1f' % (constraints['fiber_attenuation_coef_max'])
     }], style=style)
     user_inputs.update(answers)
     log("")
@@ -342,33 +354,56 @@ def ask_option_1():
         fiber_classes[user_inputs['fiber_class']].loc['1', 'Attenuation Coefficient (dB/km)']
     ))
     log("")
+    log("Safety Margin", color="green")
+    log("Safety margin should be between %.1f dB and %.1f dB." % (
+        constraints['safety_margin_min'],
+        constraints['safety_margin_max']
+    ))
     answers = prompt([{
         'type': 'input',
-        'name': 'attenuation_coefficient',
-        'message': 'Please input the attenuation coefficient value for the cable (should not exceed than the max value of selected cable) =',
+        'name': 'safety_margin',
+        'message': 'Please input safety margin value (dB) =',
         'filter': lambda val: float(val),
-        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= fiber_classes[user_inputs['fiber_class']].loc['1', 'Attenuation Coefficient (dB/km)'] or 'The value should not exceed than the max value of selected cable'
+        'validate': lambda val: validate_fraction(val) and constraints['safety_margin_min'] <= float(val) <= constraints['safety_margin_max'] or 'The value should be between %.1f and %.1f' % (
+            constraints['safety_margin_min'],
+            constraints['safety_margin_max']
+        )
     }])
     user_inputs.update(answers)
+
+def ask_log_option_2():
+    answers = prompt([{
+        'type': 'input',
+        'name': 'link_attenuation_coef',
+        'message': 'Please input the attenuation coefficient value of the L1 (dB/km) =',
+        'filter': lambda val: float(val),
+        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= constraints['link_attenuation_coef_max'] or 'The value must be between 0 and %.3f' % (constraints['link_attenuation_coef_max'])
+    }])
+    user_inputs.update(answers)
+    log("")
+    df_fiber_spec.loc['Single Mode (SM)', 'Attenuation (dB/km)'] = user_inputs['link_attenuation_coef']
+    log_df(df_fiber_spec, flag='pmt')
+    log("")
+
 
 def calc_log_option_1():
     # Calculations
     calc_outputs.update({
-        'connector_loss': df_connector_loss.loc[user_inputs['connector_grade'], 'Maximum Attenuation Value (dB)']
-    })
-    calc_outputs.update({
         'total_splic_loss': dwdm.total_splic_loss(user_inputs['splic_loss'], user_inputs['num_splic']),
-        'total_connector_loss': dwdm.total_connector_loss(calc_outputs['connector_loss'], user_inputs['num_connector']),
-        'fiber_loss': dwdm.fiber_loss(user_inputs['attenuation_coefficient'], user_inputs['l1_length']),
+        'total_connector_loss': dwdm.total_connector_loss(user_inputs['connector_loss'], user_inputs['num_connector']),
+        'fiber_loss': dwdm.fiber_loss(user_inputs['fiber_attenuation_coef'], user_inputs['l1_length']),
     })
     calc_outputs.update({
-        'link_loss': dwdm.link_loss(calc_outputs['total_splic_loss'], calc_outputs['total_connector_loss'], calc_outputs['fiber_loss'])
+        'link_loss': dwdm.link_loss(
+            calc_outputs['total_splic_loss'], 
+            calc_outputs['total_connector_loss'], 
+            calc_outputs['fiber_loss'],
+            user_inputs['safety_margin']
+        )
     })
     calc_outputs.update({
-        'link_attenuation': dwdm.link_attenuation(calc_outputs['link_loss'], user_inputs['l1_length'])
+        'link_attenuation_coef': dwdm.link_attenuation(calc_outputs['link_loss'], user_inputs['l1_length'])
     })
-    # update to fiber spec dataframe
-    df_fiber_spec.loc['Single Mode (SM)', 'Attenuation (dB/km)'] = calc_outputs['link_attenuation']
 
     # log to user
     log("Calculation for Link attenuation value of L1 started.", color='green')
@@ -388,30 +423,49 @@ def calc_log_option_1():
         calc_outputs['fiber_loss']
     ))
     log("")
+    log("Safety margin")
+    log("Safety margin value = %.1f dB" % (
+        user_inputs['safety_margin']
+    ))
+    log("")
     log("Link loss budget for the cable plant")
     log("Link loss budget for the cable plant = Total Splice Losses (dB) + Total connector loss + (dB) Fiber losses = %.1f dB" % (
         calc_outputs['link_loss']
     ))
     log("")
     log("Link attenuation value")
-    log("Link attenuation value (dB\km) = link loss budget for the cable plant / length of L1 = %.1f dB/km" % (
-        calc_outputs['link_attenuation']
+    log("Link attenuation value (dB/km) = link loss budget for the cable plant / length of L1 = %.1f dB/km" % (
+        calc_outputs['link_attenuation_coef']
     ))
     log("")
-    log("This table show the value of SM fiber Link specification.", color="green")
-    log_df(df_fiber_spec, flag='pmt')
+
+    # if not exceed the limit, update to fiber spec dataframe
+    if calc_outputs['link_attenuation_coef'] <= constraints['link_attenuation_coef_max']:
+        df_fiber_spec.loc['Single Mode (SM)', 'Attenuation (dB/km)'] = calc_outputs['link_attenuation_coef']
+        log("This table show the value of SM fiber Link specification.", color="green")
+        log_df(df_fiber_spec, flag='pmt')
+        log("")
+        return True
+    else:
+        log("Calculated link attenuation is greater than %.3f dB" % (
+            constraints['link_attenuation_coef_max']
+        ), color="red")
+        log("")
+        return False
 
 def ask_log_fiber_spec():
     answers = prompt([{
         'type': 'input',
         'name': 'l1_length',
         'message': 'Please Input the Length of L1 (km) =',
-        'filter': lambda val: int(val),
-        'validate': lambda val: validate_number(val) and constraints['l1_min'] <= int(val) <= constraints['l1_max'] or 'Length must be number and between %s and %s' % (constraints['l1_min'], constraints['l1_max'])
+        'filter': lambda val: float(val),
+        'validate': lambda val: validate_fraction(val) and constraints['l1_min'] <= float(val) <= constraints['l1_max'] or 'Length must be number and between %s and %s' % (constraints['l1_min'], constraints['l1_max'])
     }], style=style)
     user_inputs.update(answers)
     log("This table shows the value of SM fiber Link specification.", color="green")
     log_df(df_fiber_spec)
+    log("")
+    log("Maximum link attenuation value for 1530 nm-1565 nm wavelength region is 0.275 dB/km.")
     log("")
     answers = prompt([
         {
@@ -439,7 +493,12 @@ def ask_log_fiber_spec():
     log("")
     if user_inputs['fiber_spec_change_option'] == '1':
         ask_option_1()
-        calc_log_option_1()
+        while not calc_log_option_1():
+            log("Calculated result exceeds the expected result. Please reconsider the losess.", color="yellow")
+            log("")
+            ask_option_1()
+    elif user_inputs['fiber_spec_change_option'] == '2':
+        ask_log_option_2()
 
 def calc_and_log_pout_per_channel():
     calc_outputs.update({

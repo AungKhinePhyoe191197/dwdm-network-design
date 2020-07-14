@@ -15,8 +15,8 @@ def total_connector_loss(loss, num):
 def fiber_loss(coef, len):
     return coef*len
 
-def link_loss(splic_loss, connector_loss, fiber_loss):
-    return splic_loss+connector_loss+fiber_loss
+def link_loss(splic_loss, connector_loss, fiber_loss, safety_margin):
+    return splic_loss+connector_loss+fiber_loss+safety_margin
 
 def link_attenuation(loss, len):
     return loss/len
