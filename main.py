@@ -42,6 +42,8 @@ constraints = {
     'safety_margin_max': 5,
     'num_channel_min': 40,
     'num_channel_max': 80,
+    'dispersion_min': -510,
+    'dispersion_max': 1020,
 }
 user_inputs = {
     'fiber_class': 'G.625.D'
@@ -544,24 +546,72 @@ def ask_log_tables():
         "This table show the general types and values of DCM.")
     log("")
 
-def calc_and_log_pout_per_channel():
+def calc_log_pout_per_channel():
     calc_outputs.update({
         'pout_per_channel': dwdm.pout_per_channel(
             df_edfa_spec.loc['Maximum Output Power (Pout Max)', 'Power Values'],
             user_inputs['num_channel']
         )
     })
-    log("The output power of an amplifier per channel in an N channel DWDM network is Pout (dBm) = Pin (dBm) + Gain (dB)")
+    log("Output power of an amplifier per channel", color="green")
+    log("The output power of an amplifier per channel in an N channel DWDM network is ")
+    log("Pout (dBm) = Pin (dBm) + Gain (dB)")
+    log("")
     log("Pout/ch = Maximum output power – 10*log10 (N) = %.2f dBm" % (
         calc_outputs['pout_per_channel']
-    ), color="green")
+    ))
+    log("")
     log("Per channel output power is")
     log("Pin (dBm) + Gain (dB) = %.2f dBm" % (
         calc_outputs['pout_per_channel']
     ))
+    log("")
     log("In %d channel DWDM link, for single channel calculation the maximum output should be %.2f dBm." % (
         user_inputs['num_channel'],
         calc_outputs['pout_per_channel']
+    ))
+    log("Gain range of the amplifier should be in the range of %.1f to %.1f" % (
+        df_edfa_spec.loc['Gain Range Lower (G)', 'Power Values'],
+        df_edfa_spec.loc['Gain Range Upper (G)', 'Power Values']
+    ))
+
+def calc_log_total_link_length():
+    calc_outputs.update({
+        'total_link_length': dwdm.total_link_length(
+            user_inputs['l1_length'],
+            user_inputs['l2_length']
+        )
+    })
+    log("Length of the whole link", color="green")
+    log("Length of L1 = %.1f km" % (
+        user_inputs['l1_length']
+    ))
+    log("Length of L2 = %.1f km" % (
+        user_inputs['l2_length']
+    ))
+    log("")
+    log("Total length of the link = %.1f km" % (
+        calc_outputs['total_link_length']
+    ))
+
+def calc_log_dispersion():
+    calc_outputs.update({
+        'total_dispersion': dwdm.total_disperssion(
+            user_inputs['l1_length'],
+            user_inputs['l2_length'],
+            df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'],
+            df_fiber_spec_l2.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)']
+        )
+    })
+
+    log("Dispersion of the link", color="green")
+    log("Residual dispersion value should be in the range from %d ps/nm to %d ps/nm." % (
+        constraints['dispersion_min'],
+        constraints['dispersion_max']
+    ))
+    log("")
+    log("Total dispersion value of the link = %.1f ps/nm" % (
+        calc_outputs['total_dispersion']
     ))
 
 def main(argv):
@@ -574,40 +624,10 @@ def main(argv):
     ask_log_fiber_spec(df_fiber_spec_l1, 1)
     ask_log_fiber_spec(df_fiber_spec_l2, 2)
     ask_log_tables()
-    # log_seperator("=")
     ask_num_channel()
-    # calc_and_log_pout_per_channel()
-    # log("Gain range of the amplifier should be in the range of %d to %d" % (
-    #     df_edfa_spec.loc['Gain Range Lower (G)', 'Power Values'],
-    #     df_edfa_spec.loc['Gain Range Upper (G)', 'Power Values']
-    # ))
-    # log("")
-    # ask_line_lengths()
-    # log("Total length of the link = %d km" % (
-    #     user_inputs['l1_length'] + user_inputs['l2_length']
-    # ))
-    # log("")
-    # log("Residual dispersion value should be in the range from -510 ps/nm to 1020 ps/nm.")
-    # calc_outputs.update({
-    #     'total_dispersion': total_disperssion(
-    #         user_inputs['l1_length'],
-    #         user_inputs['l2_length'],
-    #         df_fiber_spec.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)']
-    #     )
-    # })
-    # log("Total dispersion value of the link = %d ps/nm" % (
-    #     calc_outputs['total_dispersion']
-    # ))
-    # log("")
-    # if(calc_outputs['total_dispersion'] > 1020):
-    #     log("Dispersion value too high, please choose the suitable DCM module for the link.")
-    #     log_df(df_dcm_spec)
-    #     answers = prompt([{
-    #         'type': 'list',
-    #         'message': 'Select:',
-    #         'name': 'dcm_module',
-    #         'choices': [i for i in df_dcm_spec.index]
-    #     }])
+    calc_log_pout_per_channel()
+    calc_log_total_link_length()
+    calc_log_dispersion()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
