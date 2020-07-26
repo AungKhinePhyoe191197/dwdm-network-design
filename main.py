@@ -79,8 +79,8 @@ df_insert_loss_spec_comm_addrop = pd.DataFrame({
 df_edfa_spec = pd.DataFrame({
     'Amplifier Power Types': [
         'Flat Gain (FG)', 
-        'Gain Range Upper (G)',
-        'Gain Range Lower (G)', 
+        'Maximum Gain (G)',
+        'Minimum Gain (G)', 
         'Noise Figure (NF)', 
         'Maximum Input Power (Pin Max)',
         'Maximum Output Power (Pout Max)',
@@ -231,6 +231,7 @@ def ask_transceiver_power_values():
             'type': 'input',
             'name': 'transmit_pow_min',
             'message': 'Minimum Transmit Power (dB)'
+            # TODO: floats 
         },
         {
             'type': 'input',
@@ -252,6 +253,7 @@ def ask_transceiver_power_values():
     user_inputs.update(answers)
 
 def ask_connector_loss_value():
+    # TODO: additional loss
     log("Please add the maximum connector loss value for the link")
     answers = prompt([
         {
@@ -571,9 +573,10 @@ def calc_log_pout_per_channel():
         calc_outputs['pout_per_channel']
     ))
     log("Gain range of the amplifier should be in the range of %.1f to %.1f" % (
-        df_edfa_spec.loc['Gain Range Lower (G)', 'Power Values'],
-        df_edfa_spec.loc['Gain Range Upper (G)', 'Power Values']
+        df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'],
+        df_edfa_spec.loc['Maximum Gain (G)', 'Power Values']
     ))
+    log("")
 
 def calc_log_total_link_length():
     calc_outputs.update({
@@ -593,10 +596,12 @@ def calc_log_total_link_length():
     log("Total length of the link = %.1f km" % (
         calc_outputs['total_link_length']
     ))
+    log("")
 
 def calc_log_dispersion():
+    # total dispersion
     calc_outputs.update({
-        'total_dispersion': dwdm.total_disperssion(
+        'total_dispersion': dwdm.total_dispersion(
             user_inputs['l1_length'],
             user_inputs['l2_length'],
             df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'],
@@ -613,6 +618,41 @@ def calc_log_dispersion():
     log("Total dispersion value of the link = %.1f ps/nm" % (
         calc_outputs['total_dispersion']
     ))
+    log("")
+
+    # residual dispersion
+    # TODO: continue residual calculation
+    # TODO: loop from the bottom
+    if calc_outputs['total_dispersion'] > constraints['dispersion_min']:
+        log("Dispersion value too high, adding the suitable DCM module for the link.")
+        log("")
+        for i in df_dcm_spec.index[::-1]:
+            dcm = df_dcm_spec.loc[i, 'Dispersion Compensation (ps/nm)']
+            residual_dispersion = dwdm.residual_dispersion(calc_outputs['total_dispersion'], dcm)
+            if constraints['dispersion_min'] < residual_dispersion < constraints['dispersion_max']:
+                calc_outputs['dcm_type'] = i
+                calc_outputs['residual_dispersion'] = residual_dispersion
+
+                # logging
+                log("Residual Dispersion = %.1f ps/nm + (2 x %.1f) = %.1f ps/nm" % (
+                    calc_outputs['total_dispersion'],
+                    dcm,
+                    calc_outputs['residual_dispersion']
+                ))
+                log("")
+                return
+
+        log("Unable to add dcm module!", color="red")
+        log("")
+    else:
+        calc_outputs['residual_dispersion'] = calc_outputs['total_dispersion']
+
+        # logging
+        log("Residual Dispersion = %.1f ps/nm – No DCM = %.1f ps/nm" % (
+            calc_outputs['total_dispersion'],
+            calc_outputs['residual_dispersion']
+        ))
+        log("")
 
 def main(argv):
     if len(argv) > 0:

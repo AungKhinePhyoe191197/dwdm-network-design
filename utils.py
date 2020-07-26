@@ -47,7 +47,7 @@ def generate_questions(df):
     for i in df.index:
         choices.append(Separator(f'== {i} =='))
         choices = choices + [{'name': f'{col}', 'value': f'{i} {col}'} for col in df.columns]
-    
+
     questions = [
         {
             'type': 'checkbox',
@@ -63,8 +63,10 @@ def generate_questions(df):
                 'type': 'input',
                 'name': lambda i=i, col=col: (i, col),
                 'message': f'{i} > {col}',
+                # TODO: update message
                 'default': f'{df.loc[i, col]}',
                 'when': lambda answers, col=col, i=i: f'{i} {col}' in answers.get('checkbox')
+                # TODO: update filter and validate
             })
     return questions
 
