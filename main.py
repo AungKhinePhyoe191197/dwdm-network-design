@@ -757,7 +757,7 @@ def calc_log_gain():
 
     # Check p1 gain range
     if not(df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'] < p1_gain < df_edfa_spec.loc['Maximum Gain (G)', 'Power Values']):
-        place_lineamp(df_fiber_spec_l1, 1)
+        place_lineamp(df_fiber_spec_l1, '1')
 
     log("Gain calculation of B2:", color="green")
     log("B2 Input Power = (P1 O/P power – Degree ROADM 1 – DegreeROADM 2) = %.1f dBm" % (
@@ -779,7 +779,7 @@ def calc_log_gain():
 
     # Check p2 gain range
     if not(df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'] < p2_gain < df_edfa_spec.loc['Maximum Gain (G)', 'Power Values']):
-        place_lineamp(df_fiber_spec_l2, 2)
+        place_lineamp(df_fiber_spec_l2, '2')
 
 def place_lineamp(df, line_number):
     # calculation
