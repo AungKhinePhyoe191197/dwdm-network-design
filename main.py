@@ -63,14 +63,14 @@ df_fiber_spec_l2 = pd.DataFrame({
 }).set_index('Type')
 
 df_insert_loss_spec_addrop_comm = pd.DataFrame({
-    'ROADM Degree': [2, 4, 8],
+    'ROADM Degree': ['2', '4', '8'],
     'MDU Loss (dB)': [14, 14, 14],
     'Directionless ROADM (dB)': [4, 7, 7],
     'Degree ROADM (dB)': [4, 7, 7]
 }).set_index('ROADM Degree')
 
 df_insert_loss_spec_comm_addrop = pd.DataFrame({
-    'ROADM Degree': [2, 4, 8],
+    'ROADM Degree': ['2', '4', '8'],
     'MDU Loss (dB)': [7, 7, 7],
     'Directionless ROADM (dB)': [7, 9, 11],
     'Degree ROADM (dB)': [7, 9, 11]
@@ -133,46 +133,6 @@ fiber_classes = {
     'G.625.D': df_fiber_g625d,
 }
 
-class NumChannelValidator(Validator):
-    def validate(self, document):
-        try:
-            int(document.text)
-        except ValueError:
-            raise ValidationError(
-                message='Please enter a number',
-                cursor_position=len(document.text))  # Move cursor to end
-        if not 40 <= int(document.text) <= 88:
-            raise ValidationError(
-                message='Number of channel must be between 40 and 88',
-                cursor_position=len(document.text))
-
-class NumberRangeValidator(Validator):
-    def __init__(self, min, max):
-        self.min = min
-        self.max = max
-
-    def validate(self, document):
-        # TODO: validator of number within range
-        try:
-            int(document.text)
-        except ValueError:
-            raise ValidationError(
-                message='Please enter a number',
-                cursor_position=len(document.text))  # Move cursor to end
-        if not self.min <= int(document.text) <= self.max:
-            raise ValidationError(
-                message='Out of range',
-                cursor_position=len(document.text))  # Move cursor to end
-
-class NumberValidator(Validator):
-    def validate(self, document):
-        try:
-            int(document.text)
-        except ValueError:
-            raise ValidationError(
-                message='Please enter a number',
-                cursor_position=len(document.text))  # Move cursor to end
-
 def validate_number(val):
     try:
         int(val)
@@ -230,23 +190,30 @@ def ask_transceiver_power_values():
         {
             'type': 'input',
             'name': 'transmit_pow_min',
-            'message': 'Minimum Transmit Power (dB)'
-            # TODO: floats 
+            'message': 'Minimum Transmit Power (dB)',
+            'filter': lambda val: float(val),
+            'validate': lambda val: validate_fraction(val) or 'Input must be real number'
         },
         {
             'type': 'input',
             'name': 'transmit_pow_max',
-            'message': 'Maximum Transmit Power (dB)'
+            'message': 'Maximum Transmit Power (dB)',
+            'filter': lambda val: float(val),
+            'validate': lambda val: validate_fraction(val) or 'Input must be real number'
         },
         {
             'type': 'input',
             'name': 'receive_pow_min',
-            'message': 'Minimum Receive Power (dB)'
+            'message': 'Minimum Receive Power (dB)',
+            'filter': lambda val: float(val),
+            'validate': lambda val: validate_fraction(val) or 'Input must be real number'
         },
         {
             'type': 'input',
             'name': 'receive_pow_max',
-            'message': 'Maximum Receive Power (dB)'
+            'message': 'Maximum Receive Power (dB)',
+            'filter': lambda val: float(val),
+            'validate': lambda val: validate_fraction(val) or 'Input must be real number'
         }
     ], style=style)
     log("")
@@ -258,8 +225,10 @@ def ask_connector_loss_value():
     answers = prompt([
         {
             'type': 'input',
-            'name': 'connector_loss_max',
-            'message': 'Maximum Connector Loss (dB)'
+            'name': 'connector_loss_addition',
+            'message': 'Additional Connector Loss (dB)',
+            'filter': lambda val: float(val),
+            'validate': lambda val: validate_fraction(val) or 'Input must be a real number'
         }
     ])
     log("")
@@ -621,8 +590,6 @@ def calc_log_dispersion():
     log("")
 
     # residual dispersion
-    # TODO: continue residual calculation
-    # TODO: loop from the bottom
     if calc_outputs['total_dispersion'] > constraints['dispersion_min']:
         log("Dispersion value too high, adding the suitable DCM module for the link.")
         log("")
@@ -654,6 +621,273 @@ def calc_log_dispersion():
         ))
         log("")
 
+def calc_log_span_loss():
+    try:
+        dcm_loss = df_dcm_spec.loc[calc_outputs['dcm_type'], 'Insertion Loss (dB)']
+    except KeyError:
+        dcm_loss = 0
+    calc_outputs.update({
+        'span_1_loss': dwdm.span_loss(
+            df_fiber_spec_l1.loc['Single Mode (SM)', 'Attenuation (dB/km)'],
+            user_inputs['l1_length'],
+            user_inputs['connector_loss_addition'],
+            dcm_loss
+        ),
+        'span_2_loss': dwdm.span_loss(
+            df_fiber_spec_l2.loc['Single Mode (SM)', 'Attenuation (dB/km)'],
+            user_inputs['l2_length'],
+            user_inputs['connector_loss_addition'],
+            dcm_loss
+        ),
+    })
+
+    # Logging
+    log("Span Lossess", color="green")
+    log("")
+    log("Span 1 losses= (attenuation coefficient of L1 x length) + (2 x additional connector losses) + DCM losses = %.1f dB" %(
+        calc_outputs['span_1_loss']
+    ))
+    log("")
+    log("Span 2 losses= (attenuation coefficient of L2 x length) + (2 x additional connector losses) + DCM losses = %.1f dB" %(
+        calc_outputs['span_2_loss']
+    ))
+    log("")
+
+def ask_site_degrees():
+    log("Minimum transmitter power of the link is %.1f dBm and minimum receiver sensitivity is %.1f dBm" % (
+        user_inputs['transmit_pow_min'],
+        user_inputs['receive_pow_min']
+    ))
+    log("")
+    answers = prompt([
+        {
+            'type': 'list',
+            'name': 'tx_degree',
+            'message': 'Please choose the transmitting site degree: ',
+            'choices': df_insert_loss_spec_addrop_comm.index,
+        },
+        {
+            'type': 'list',
+            'name': 'pt_degree',
+            'message': 'Please choose a degree value of Degree ROADM station which make changing the data traffic between the link: ',
+            'choices': df_insert_loss_spec_addrop_comm.index,
+        },
+        {
+            'type': 'list',
+            'name': 'rx_degree',
+            'message': 'Please choose the receiving site degree: ',
+            'choices': df_insert_loss_spec_addrop_comm.index,
+        }
+    ])
+    user_inputs.update(answers)
+    log("")
+
+def calc_log_gain():
+    power_in_b1, b1_gain = dwdm.power_b1(
+        0, #TODO: replace with input power
+        df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'MDU Loss (dB)'],
+        df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'Directionless ROADM (dB)'],
+        df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'Degree ROADM (dB)'],
+        calc_outputs['pout_per_channel']
+    )
+    calc_outputs.update({
+        'power_in_b1': power_in_b1,
+        'b1_gain': b1_gain
+    })
+    power_in_p1, p1_gain = dwdm.power_p1(
+        calc_outputs['pout_per_channel'],
+        calc_outputs['span_1_loss'],
+        calc_outputs['pout_per_channel']
+    )
+    calc_outputs.update({
+        'power_in_p1': power_in_p1,
+        'p1_gain': p1_gain
+    })
+    power_in_b2, b2_gain = dwdm.power_b2(
+        calc_outputs['pout_per_channel'],
+        df_insert_loss_spec_comm_addrop.loc[user_inputs['pt_degree'], 'Degree ROADM (dB)'],
+        df_insert_loss_spec_addrop_comm.loc[user_inputs['pt_degree'], 'Degree ROADM (dB)'],
+        calc_outputs['pout_per_channel']
+    )
+    calc_outputs.update({
+        'power_in_b2': power_in_b2,
+        'b2_gain': b2_gain
+    })
+    power_in_p2, p2_gain = dwdm.power_p2(
+        calc_outputs['pout_per_channel'],
+        calc_outputs['span_2_loss'],
+        calc_outputs['pout_per_channel']
+    )
+    calc_outputs.update({
+        'power_in_p2': power_in_p2,
+        'p2_gain': p2_gain
+    })
+
+# df_edfa_spec = pd.DataFrame({
+#     'Amplifier Power Types': [
+#         'Flat Gain (FG)', 
+#         'Maximum Gain (G)',
+#         'Minimum Gain (G)', 
+#         'Noise Figure (NF)', 
+#         'Maximum Input Power (Pin Max)',
+#         'Maximum Output Power (Pout Max)',
+#         'Minimum Input Power (Pin Min)',
+#         'Minimum Output Power (Pout Min)'],
+#     'Power Values': [22, 30, 15, 5.5, 5, 20, -35, -5]
+
+    # Logging
+    log("Gain calculation of B1:", color="green")
+    log("B1 I/P power = (Pin1 – MDU Loss – D/L ROADM Loss – Degree ROADM Loss) = %.1f dBm" % (
+        power_in_b1
+    ))
+    # TODO: check gain range
+    log("Therefore, B1 Gain = %.1f dB" % (
+        b1_gain
+    ))
+    log("")
+    log("Gain calculation of P1:", color="green")
+    log("P1 I/P power = B1 O/P power – Span 1 Loss = %.1f dBm" % (
+        power_in_p1
+    ))
+
+    log("Therefore, P1 Gain = %.1f dB" % (
+        p1_gain
+    ))
+    log("")
+
+    # Check p1 gain range
+    if not(df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'] < p1_gain < df_edfa_spec.loc['Maximum Gain (G)', 'Power Values']):
+        place_lineamp(df_fiber_spec_l1, 1)
+
+    log("Gain calculation of B2:", color="green")
+    log("B2 Input Power = (P1 O/P power – Degree ROADM 1 – DegreeROADM 2) = %.1f dBm" % (
+        power_in_b2
+    ))
+    # TODO: check gain range
+    log("Therefore, B1 Gain = %.1f dB" % (
+        b2_gain
+    ))
+    log("")
+    log("Gain calculation of P2:", color="green")
+    log("P2 I/P power = B2 O/P power – Span 2 Loss = %.1f dBm" % (
+        power_in_p2
+    ))
+    log("Therefore, P2 Gain = %.1f dB" % (
+        p2_gain
+    ))
+    log("")
+
+    # Check p2 gain range
+    if not(df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'] < p2_gain < df_edfa_spec.loc['Maximum Gain (G)', 'Power Values']):
+        place_lineamp(df_fiber_spec_l2, 2)
+
+def place_lineamp(df, line_number):
+    # calculation
+    try:
+        dcm_loss = df_dcm_spec.loc[calc_outputs['dcm_type'], 'Insertion Loss (dB)']
+    except KeyError:
+        dcm_loss = 0
+
+    calc_outputs.update({
+        'power_in_lineamp': dwdm.power_in_lineamp(
+            df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'],
+            calc_outputs['pout_per_channel']
+        ),
+    })
+    calc_outputs.update({
+        'l'+line_number+'1_fiber_loss': dwdm.ln1_fiber_loss(
+            calc_outputs['pout_per_channel'],
+            calc_outputs['power_in_lineamp'],
+            user_inputs['connector_loss_addition']
+        )
+    })
+    calc_outputs.update({
+        'l'+line_number+'1_length': dwdm.link_length(
+            calc_outputs['l'+line_number+'1_fiber_loss'],
+            df.loc['Single Mode (SM)', 'Attenuation (dB/km)']
+        )
+    })
+    calc_outputs.update({
+        'l'+line_number+'2_fiber_loss': dwdm.ln2_fiber_loss(
+            calc_outputs['l'+line_number+'1_lenght'],
+            df.loc['Single Mode (SM)', 'Attenuation (dB/km)']
+        )
+    })
+    calc_outputs.update({
+        'l'+line_number+'2_span_loss': dwdm.ln2_span_loss(
+            calc_outputs['l'+line_number+'2_fiber_loss'],
+            dcm_loss,
+            user_inputs['connector_loss_addition']
+        )
+    })
+
+    # Logging
+    log("Line amplifier need to add in the L%d link." % (line_number))
+    log("Amplifier is placed at a point where minimum gain can be achieved i.e. %.1f dB" % (
+        df_edfa_spec.loc['Minimum Gain (G)', 'Power Values']
+    ))
+    log("")
+    log("Line amp O/P power = Gain(dB) + Line amp input power = %.1f dBm" % (
+        calc_outputs['pout_per_channel']
+    ))
+    log("Line amp input power (dB) = %.1f dB" % (
+        calc_outputs['power_in_lineamp']
+    ))
+    log("")
+    log("Due to the Line amplifier placement in the L%d link, the link becomes L%d1 and L%d2." %(
+        line_number, line_number, line_number
+    ), color="green")
+    log("")
+    log("L%d1 fiber loss = B%d O/p power – (Line amp input power + (2 x additional connector loss)) = %.1f dB" % (
+        line_number,
+        line_number,
+        calc_outputs['l'+line_number+'1_loss']
+    ))
+    log("")
+    log("Length of L%d1 = L%d1 Loss (dB) / α (dB/km) = %.1f km" % (
+        line_number,
+        line_number,
+        calc_outputs['l'+line_number+'1_length']
+    ))
+    log("")
+    log("Length of L%d2 = length of L%d – length of L%d1= %.1f km" % (
+        line_number,
+        line_number,
+        line_number,
+        user_inputs['l'+line_number+'_length'] - calc_outputs['l'+line_number+'1_length']
+    ))
+    log("")
+    log("L%d2 span loss = Fiber L%d2 loss + DCM loss + (2 x additinal connector loss) = %.1f dB" %(
+        line_number,
+        line_number,
+        calc_outputs['l'+line_number+'2_span_loss']
+    ))
+    log("")
+
+def calc_log_receive_end():
+    calc_outputs.update({
+        'power_receive': dwdm.power_receive(
+            calc_outputs['pout_per_channel'],
+            df_insert_loss_spec_comm_addrop.loc[user_inputs['tx_degree'], 'Degree ROADM (dB)'],
+            df_insert_loss_spec_comm_addrop.loc[user_inputs['tx_degree'], 'Directionless ROADM (dB)'],
+            df_insert_loss_spec_comm_addrop.loc[user_inputs['rx_degree'], 'MDU Loss (dB)'],
+        )
+    })
+
+    log("After calculating I/P, O/P and gain power values for EDFA the last step remaining is calculating the input power at the receiving end connected to the De-Mux.")
+    log("")
+    log("Receiving End", color="green")
+    log("I/P to receiving end = (P2 O/P power – Degree ROADM Loss – D/L ROADM Loss – MDU Loss) = %.1f dBm" % (
+        calc_outputs['power_receive']
+    ))
+    log("")
+
+    if not (user_inputs['receive_pow_min'] < calc_outputs['power_receive'] < user_inputs['receive_pow_max']):
+        log("The input power at the receiving end should be in the range of minimum transceiver sensitivity and maximum receive power of the transceiver.", color="red")
+        log("")
+        return False
+    return True
+
 def main(argv):
     if len(argv) > 0:
         is_delay = not (argv[0] == 'off')
@@ -668,6 +902,19 @@ def main(argv):
     calc_log_pout_per_channel()
     calc_log_total_link_length()
     calc_log_dispersion()
+    calc_log_span_loss()
+    ask_site_degrees()
+    calc_log_gain()
+    while(not calc_log_receive_end()):
+        log("Please reconsider your specifications and reciever degrees.", color="red")
+        log("")
+        log_seperator("=")
+        logAndModify(df_insert_loss_spec_comm_addrop, "Insertion losses from common port to add/drop port",
+            "This table shown the general insertion losses common port to add/drop port of MDU, Directionless ROADM and Degree ROADM.")
+        log("")
+        ask_transceiver_power_values()
+        ask_site_degrees()
+    # TODO: table output
 
 if __name__ == "__main__":
     main(sys.argv[1:])
