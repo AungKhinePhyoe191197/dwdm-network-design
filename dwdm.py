@@ -47,10 +47,10 @@ def power_p2(in_power, span_loss, out_power):
     return power_in_p2, out_power - power_in_p2
 
 def power_in_lineamp(amp_gain, out_power):
-    return amp_gain - out_power
+    return out_power - amp_gain
 
 def ln1_fiber_loss(bn_out_power, lineamp_in_power, additional_connector_loss):
-    return bn_out_power - (lineamp_in_power + 2*additional_connector_loss)
+    return bn_out_power - 2*additional_connector_loss - lineamp_in_power
 
 def ln2_fiber_loss(length, coef):
     return length*coef

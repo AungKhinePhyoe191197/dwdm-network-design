@@ -723,18 +723,6 @@ def calc_log_gain():
         'p2_gain': p2_gain
     })
 
-# df_edfa_spec = pd.DataFrame({
-#     'Amplifier Power Types': [
-#         'Flat Gain (FG)', 
-#         'Maximum Gain (G)',
-#         'Minimum Gain (G)', 
-#         'Noise Figure (NF)', 
-#         'Maximum Input Power (Pin Max)',
-#         'Maximum Output Power (Pout Max)',
-#         'Minimum Input Power (Pin Min)',
-#         'Minimum Output Power (Pout Min)'],
-#     'Power Values': [22, 30, 15, 5.5, 5, 20, -35, -5]
-
     # Logging
     log("Gain calculation of B1:", color="green")
     log("B1 I/P power = (Pin1 – MDU Loss – D/L ROADM Loss – Degree ROADM Loss) = %.1f dBm" % (
@@ -809,7 +797,7 @@ def place_lineamp(df, line_number):
     })
     calc_outputs.update({
         'l'+line_number+'2_fiber_loss': dwdm.ln2_fiber_loss(
-            calc_outputs['l'+line_number+'1_lenght'],
+            calc_outputs['l'+line_number+'1_length'],
             df.loc['Single Mode (SM)', 'Attenuation (dB/km)']
         )
     })
@@ -822,7 +810,7 @@ def place_lineamp(df, line_number):
     })
 
     # Logging
-    log("Line amplifier need to add in the L%d link." % (line_number))
+    log("Line amplifier need to add in the L%s link." % (line_number))
     log("Amplifier is placed at a point where minimum gain can be achieved i.e. %.1f dB" % (
         df_edfa_spec.loc['Minimum Gain (G)', 'Power Values']
     ))
@@ -834,30 +822,30 @@ def place_lineamp(df, line_number):
         calc_outputs['power_in_lineamp']
     ))
     log("")
-    log("Due to the Line amplifier placement in the L%d link, the link becomes L%d1 and L%d2." %(
+    log("Due to the Line amplifier placement in the L%s link, the link becomes L%s1 and L%s2." %(
         line_number, line_number, line_number
     ), color="green")
     log("")
-    log("L%d1 fiber loss = B%d O/p power – (Line amp input power + (2 x additional connector loss)) = %.1f dB" % (
+    log("L%s1 fiber loss = B%s O/p power – (Line amp input power + (2 x additional connector loss)) = %.1f dB" % (
         line_number,
         line_number,
-        calc_outputs['l'+line_number+'1_loss']
+        calc_outputs['l'+line_number+'1_fiber_loss']
     ))
     log("")
-    log("Length of L%d1 = L%d1 Loss (dB) / α (dB/km) = %.1f km" % (
+    log("Length of L%s1 = L%s1 Loss (dB) / α (dB/km) = %.1f km" % (
         line_number,
         line_number,
         calc_outputs['l'+line_number+'1_length']
     ))
     log("")
-    log("Length of L%d2 = length of L%d – length of L%d1= %.1f km" % (
+    log("Length of L%s2 = length of L%s – length of L%s1= %.1f km" % (
         line_number,
         line_number,
         line_number,
         user_inputs['l'+line_number+'_length'] - calc_outputs['l'+line_number+'1_length']
     ))
     log("")
-    log("L%d2 span loss = Fiber L%d2 loss + DCM loss + (2 x additinal connector loss) = %.1f dB" %(
+    log("L%s2 span loss = Fiber L%s2 loss + DCM loss + (2 x additinal connector loss) = %.1f dB" %(
         line_number,
         line_number,
         calc_outputs['l'+line_number+'2_span_loss']
@@ -906,14 +894,26 @@ def main(argv):
     ask_site_degrees()
     calc_log_gain()
     while(not calc_log_receive_end()):
-        log("Please reconsider your specifications and reciever degrees.", color="red")
+        log("Please redesign your link.", color="red")
         log("")
-        log_seperator("=")
-        logAndModify(df_insert_loss_spec_comm_addrop, "Insertion losses from common port to add/drop port",
-            "This table shown the general insertion losses common port to add/drop port of MDU, Directionless ROADM and Degree ROADM.")
-        log("")
-        ask_transceiver_power_values()
+        
+        answers = prompt([{
+            'type': 'confirm',
+            'name': 'redesign',
+            'message': 'Do you want to redesign?'
+        }])
+        if not answers['redesign']:
+            return 1
+
+        ask_log_tables()
+        ask_num_channel()
+        calc_log_pout_per_channel()
+        calc_log_total_link_length()
+        calc_log_dispersion()
+        calc_log_span_loss()
         ask_site_degrees()
+        calc_log_gain()
+        
     # TODO: table output
 
 if __name__ == "__main__":
