@@ -204,14 +204,14 @@ def ask_transceiver_power_values():
         {
             'type': 'input',
             'name': 'receive_pow_min',
-            'message': 'Minimum Receive Power (dB)',
+            'message': 'Minimum Receive Sensitivity (dB)',
             'filter': lambda val: float(val),
             'validate': lambda val: validate_fraction(val) or 'Input must be real number'
         },
         {
             'type': 'input',
             'name': 'receive_pow_max',
-            'message': 'Maximum Receive Power (dB)',
+            'message': 'Maximum Receive Sensitivity (dB)',
             'filter': lambda val: float(val),
             'validate': lambda val: validate_fraction(val) or 'Input must be real number'
         }
@@ -682,9 +682,22 @@ def ask_site_degrees():
     user_inputs.update(answers)
     log("")
 
-def calc_log_gain():
+def ask_calc_gain():
+    answers = prompt([{
+        'type': 'input',
+        'name': 'input_power',
+        'message': 'Enter input power: ',
+        'filter': lambda val: float(val),
+        'validate': lambda val: validate_fraction(val) and user_inputs['transmit_pow_min'] <= float(val) <= user_inputs['transmit_pow_max'] or 'Input must be number and between %.1f and %.1f' % (
+            user_inputs['transmit_pow_min'],
+            user_inputs['transmit_pow_max']
+        )
+    }])
+    user_inputs.update(answers)
+    log("")
+
     power_in_b1, b1_gain = dwdm.power_b1(
-        0, #TODO: replace with input power
+        user_inputs['input_power'],
         df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'MDU Loss (dB)'],
         df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'Directionless ROADM (dB)'],
         df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'Degree ROADM (dB)'],
@@ -694,7 +707,7 @@ def calc_log_gain():
         'power_in_b1': power_in_b1,
         'b1_gain': b1_gain
     })
-    power_in_p1, p1_gain = dwdm.power_p1(
+    power_in_p1, p1_gain = dwdm.power_p(
         calc_outputs['pout_per_channel'],
         calc_outputs['span_1_loss'],
         calc_outputs['pout_per_channel']
@@ -713,7 +726,7 @@ def calc_log_gain():
         'power_in_b2': power_in_b2,
         'b2_gain': b2_gain
     })
-    power_in_p2, p2_gain = dwdm.power_p2(
+    power_in_p2, p2_gain = dwdm.power_p(
         calc_outputs['pout_per_channel'],
         calc_outputs['span_2_loss'],
         calc_outputs['pout_per_channel']
@@ -796,8 +809,11 @@ def place_lineamp(df, line_number):
         )
     })
     calc_outputs.update({
+        'l'+line_number+'2_length': user_inputs['l'+line_number+'_length'] - calc_outputs['l'+line_number+'1_length']
+    })
+    calc_outputs.update({
         'l'+line_number+'2_fiber_loss': dwdm.ln2_fiber_loss(
-            calc_outputs['l'+line_number+'1_length'],
+            calc_outputs['l'+line_number+'2_length'],
             df.loc['Single Mode (SM)', 'Attenuation (dB/km)']
         )
     })
@@ -807,6 +823,21 @@ def place_lineamp(df, line_number):
             dcm_loss,
             user_inputs['connector_loss_addition']
         )
+    })
+    calc_outputs.update({
+        'l'+line_number+'1_span_loss': dwdm.ln1_span_loss(
+            calc_outputs['l'+line_number+'1_fiber_loss'],
+            user_inputs['connector_loss_addition']
+        )
+    })
+    # Update P gain
+    _, p_gain = dwdm.power_p(
+        calc_outputs['pout_per_channel'],
+        calc_outputs['l'+line_number+'2_span_loss'],
+        calc_outputs['pout_per_channel'],
+    )
+    calc_outputs.update({
+        'p'+line_number+'_gain': p_gain
     })
 
     # Logging
@@ -842,7 +873,7 @@ def place_lineamp(df, line_number):
         line_number,
         line_number,
         line_number,
-        user_inputs['l'+line_number+'_length'] - calc_outputs['l'+line_number+'1_length']
+        calc_outputs['l'+line_number+'2_length']
     ))
     log("")
     log("L%s2 span loss = Fiber L%s2 loss + DCM loss + (2 x additinal connector loss) = %.1f dB" %(
@@ -876,6 +907,137 @@ def calc_log_receive_end():
         return False
     return True
 
+def create_table():
+    try:
+        components_dcm = [
+            {
+                'power': -df_dcm_spec.loc[calc_outputs['dcm_type'], 'Insertion Loss (dB)'],
+                'dispersion': df_dcm_spec.loc[calc_outputs['dcm_type'], 'Dispersion Compensation (ps/nm)']
+            }
+        ]
+    except KeyError:
+        components_dcm = [
+            {
+                'power': 0,
+                'dispersion': 0
+            }
+        ]
+    components_tx = [
+        {
+            'power': -df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'MDU Loss (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'Directionless ROADM (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_addrop_comm.loc[user_inputs['tx_degree'], 'Degree ROADM (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': calc_outputs['b1_gain'],
+            'dispersion': 0
+        },
+    ]
+    try:
+        components_l1 = [
+            {
+                'power': -calc_outputs['l11_span_loss'],
+                'dispersion': dwdm.dispersion(calc_outputs['l11_length'], df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'])
+            },
+            {
+                'power': df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'],
+                'dispersion': 0
+            },
+            {
+                'power': -calc_outputs['l12_span_loss'] - components_dcm[0]['power'],
+                'dispersion': dwdm.dispersion(calc_outputs['l12_length'], df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'])
+            }
+        ]
+    except KeyError:
+        components_l1 = [
+            {
+                'power': -calc_outputs['span_1_loss'] - components_dcm[0]['power'],
+                'dispersion': dwdm.dispersion(user_inputs['l1_length'], df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'])
+            }
+        ]
+    components_pt = [
+        {
+            'power': calc_outputs['p1_gain'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_comm_addrop.loc[user_inputs['pt_degree'], 'Degree ROADM (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_addrop_comm.loc[user_inputs['pt_degree'], 'Degree ROADM (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': calc_outputs['b2_gain'],
+            'dispersion': 0
+        },
+    ]
+    try:
+        components_l2 = [
+            {
+                'power': -calc_outputs['l21_span_loss'],
+                'dispersion': dwdm.dispersion(calc_outputs['l21_length'], df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'])
+            },
+            {
+                'power': df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'],
+                'dispersion': 0
+            },
+            {
+                'power': -calc_outputs['l22_span_loss'] - components_dcm[0]['power'],
+                'dispersion': dwdm.dispersion(calc_outputs['l22_length'], df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'])
+            }
+        ]
+    except KeyError:
+        components_l2 = [
+            {
+                'power': -calc_outputs['span_2_loss'] - components_dcm[0]['power'],
+                'dispersion': dwdm.dispersion(user_inputs['l2_length'], df_fiber_spec_l1.loc['Single Mode (SM)', 'Dispersion coefficient (ps/nm-km)'])
+            }
+        ]
+    components_rx = [
+        {
+            'power': calc_outputs['p2_gain'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_comm_addrop.loc[user_inputs['rx_degree'], 'Degree ROADM (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_comm_addrop.loc[user_inputs['rx_degree'], 'Directionless ROADM (dB)'],
+            'dispersion': 0
+        },
+        {
+            'power': -df_insert_loss_spec_comm_addrop.loc[user_inputs['rx_degree'], 'MDU Loss (dB)'],
+            'dispersion': 0
+        },
+    ]
+    components = components_tx + components_l1 + components_dcm + components_pt + components_l2 + components_dcm + components_rx
+    p = user_inputs['input_power']
+    d = 0
+    node_num = [0]
+    power = [p]
+    dispersion = [d]
+    for i, c in enumerate(components):
+        p += c['power']
+        d += c['dispersion']
+        node_num.append(i+1)
+        power.append(p)
+        dispersion.append(d)
+    return pd.DataFrame({
+        'Node Numbers': node_num,
+        'Power (dBm)': power,
+        'Dispersion (ps/nm)': dispersion
+    }).set_index('Node Numbers')
+
 def main(argv):
     if len(argv) > 0:
         is_delay = not (argv[0] == 'off')
@@ -892,7 +1054,7 @@ def main(argv):
     calc_log_dispersion()
     calc_log_span_loss()
     ask_site_degrees()
-    calc_log_gain()
+    ask_calc_gain()
     while(not calc_log_receive_end()):
         log("Please redesign your link.", color="red")
         log("")
@@ -912,9 +1074,13 @@ def main(argv):
         calc_log_dispersion()
         calc_log_span_loss()
         ask_site_degrees()
-        calc_log_gain()
+        ask_calc_gain()
         
     # TODO: table output
+    log('Table. Calculation Results For DWDM Link With Single Channel', color="green")
+    log("")
+    df_table = create_table()
+    log_df(df_table, flag='pmt')
 
 if __name__ == "__main__":
     main(sys.argv[1:])

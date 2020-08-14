@@ -9,6 +9,9 @@ def pout_per_channel(out_pow_max, num_channel):
 def total_dispersion(l1, l2, l1_coef, l2_coef):
     return l1*l1_coef + l2*l2_coef
 
+def dispersion(l, coef):
+    return l*coef
+
 def residual_dispersion(total, dcm):
     return total + 2*dcm
 
@@ -38,13 +41,9 @@ def power_b2(in_power, dl_loss, deg_loss, out_power):
     power_in_b2 = in_power - dl_loss - deg_loss
     return power_in_b2, out_power - power_in_b2
 
-def power_p1(in_power, span_loss, out_power):
-    power_in_p1 = in_power - span_loss
-    return power_in_p1, out_power - power_in_p1
-
-def power_p2(in_power, span_loss, out_power):
-    power_in_p2 = in_power - span_loss
-    return power_in_p2, out_power - power_in_p2
+def power_p(in_power, span_loss, out_power):
+    power_in_p = in_power - span_loss
+    return power_in_p, out_power - power_in_p
 
 def power_in_lineamp(amp_gain, out_power):
     return out_power - amp_gain
@@ -54,6 +53,9 @@ def ln1_fiber_loss(bn_out_power, lineamp_in_power, additional_connector_loss):
 
 def ln2_fiber_loss(length, coef):
     return length*coef
+
+def ln1_span_loss(fiber_loss, connector_loss):
+    return fiber_loss + 2*connector_loss
 
 def ln2_span_loss(fiber_loss, dcm_loss, connector_loss):
     return fiber_loss + dcm_loss + 2*connector_loss
