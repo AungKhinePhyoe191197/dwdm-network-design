@@ -307,7 +307,7 @@ def ask_option_1(num):
             'name': f'connector_loss_l{num}',
             'message': 'Each connector loss value =',
             'filter': lambda val: float(val),
-            'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= max(df_connector_loss['Maximum Attenuation Value (dB)']) or 'The value must be between 0 and %.1f' % (max(df_connector_loss['Maximum Attenuation Value (dB)']))
+            'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= max(df_connector_loss['Maximum Attenuation Value (dB)']) or 'The value must be between 0 and %.4f' % (max(df_connector_loss['Maximum Attenuation Value (dB)']))
         },
         {
             'type': 'input',
@@ -326,7 +326,7 @@ def ask_option_1(num):
         log_df(fiber_classes[c], flag='pmt')
         log("")
     log("Table show the cable attenuation value of G.652.D.")
-    log("Fiber attenuation value at the work-field is %.1f dB/km" % (
+    log("Fiber attenuation value at the work-field is %.4f dB/km" % (
         constraints['fiber_attenuation_coef_max']
     ))
     answers = prompt([{
@@ -334,17 +334,17 @@ def ask_option_1(num):
         'name': f'fiber_attenuation_coef_l{num}',
         'message': 'Please input the fiber attenuation coefficient value =',
         'filter': lambda val: float(val),
-        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= constraints['fiber_attenuation_coef_max'] or 'The value must be between 0 and %.1f' % (constraints['fiber_attenuation_coef_max'])
+        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= constraints['fiber_attenuation_coef_max'] or 'The value must be between 0 and %.4f' % (constraints['fiber_attenuation_coef_max'])
     }], style=style)
     user_inputs.update(answers)
     # log("")
-    # log("The maximum attenuation coefficient value of %s is %.1f dB/km" % (
+    # log("The maximum attenuation coefficient value of %s is %.4f dB/km" % (
     #     user_inputs['fiber_class'],
     #     fiber_classes[user_inputs['fiber_class']].loc['1', 'Attenuation Coefficient (dB/km)']
     # ))
     log("")
     log("Safety Margin", color="green")
-    log("Safety margin should be between %.1f dB and %.1f dB." % (
+    log("Safety margin should be between %.4f dB and %.4f dB." % (
         constraints['safety_margin_min'],
         constraints['safety_margin_max']
     ))
@@ -353,7 +353,7 @@ def ask_option_1(num):
         'name': f'safety_margin_l{num}',
         'message': 'Please input safety margin value (dB) =',
         'filter': lambda val: float(val),
-        'validate': lambda val: validate_fraction(val) and constraints['safety_margin_min'] <= float(val) <= constraints['safety_margin_max'] or 'The value should be between %.1f and %.1f' % (
+        'validate': lambda val: validate_fraction(val) and constraints['safety_margin_min'] <= float(val) <= constraints['safety_margin_max'] or 'The value should be between %.4f and %.4f' % (
             constraints['safety_margin_min'],
             constraints['safety_margin_max']
         )
@@ -366,7 +366,7 @@ def ask_log_option_2(df, num):
         'name': f'link_attenuation_coef_l{num}',
         'message': f'Please input the attenuation coefficient value of the L{num} (dB/km) =',
         'filter': lambda val: float(val),
-        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= constraints['link_attenuation_coef_max'] or 'The value must be between 0 and %.3f' % (constraints['link_attenuation_coef_max'])
+        'validate': lambda val: validate_fraction(val) and 0 <= float(val) <= constraints['link_attenuation_coef_max'] or 'The value must be between 0 and %.4f' % (constraints['link_attenuation_coef_max'])
     }])
     user_inputs.update(answers)
     log("")
@@ -398,32 +398,32 @@ def calc_log_option_1(df, num):
     log(f"Calculation for Link attenuation value of L{num} started.", color='green')
     log("")
     log("Total Splicing Losses")
-    log("Total Splice Losses (dB) = splice loss (dB) × number of splices = %.1f dB" % (
+    log("Total Splice Losses (dB) = splice loss (dB) × number of splices = %.4f dB" % (
         calc_outputs[f'total_splic_loss_l{num}']
     ))
     log("")
     log("Total Connector Losses")
-    log("Total Connector Loss (dB) = connector loss (dB) × number of connectors = %.1f dB" % (
+    log("Total Connector Loss (dB) = connector loss (dB) × number of connectors = %.4f dB" % (
         calc_outputs[f'total_connector_loss_l{num}']
     ))
     log("")
     log("Fiber Losses")
-    log(f"Fiber losses (dB) = chosen attenuation coefficient value x length of L{num} = %.1f dB" % (
+    log(f"Fiber losses (dB) = chosen attenuation coefficient value x length of L{num} = %.4f dB" % (
         calc_outputs[f'fiber_loss_l{num}']
     ))
     log("")
     log("Safety margin")
-    log("Safety margin value = %.1f dB" % (
+    log("Safety margin value = %.4f dB" % (
         user_inputs[f'safety_margin_l{num}']
     ))
     log("")
     log("Total Losess")
-    log("Total Losess = Total Splice Losses (dB) + Total connector loss + (dB) Fiber losses + Safety margin = %.1f dB" % (
+    log("Total Losess = Total Splice Losses (dB) + Total connector loss + (dB) Fiber losses + Safety margin = %.4f dB" % (
         calc_outputs[f'link_loss_l{num}']
     ))
     log("")
     log("Link attenuation value")
-    log(f"Link attenuation value (dB/km) = total losess / length of L{num} = %.3f dB/km" % (
+    log(f"Link attenuation value (dB/km) = total losess / length of L{num} = %.4f dB/km" % (
         calc_outputs[f'link_attenuation_coef_l{num}']
     ))
     log("")
@@ -436,7 +436,7 @@ def calc_log_option_1(df, num):
         log("")
         return True
     else:
-        log("Calculated link attenuation is greater than %.3f dB" % (
+        log("Calculated link attenuation is greater than %.4f dB" % (
             constraints['link_attenuation_coef_max']
         ), color="red")
         log("")
@@ -528,20 +528,20 @@ def calc_log_pout_per_channel():
     log("The output power of an amplifier per channel in an N channel DWDM network is ")
     log("Pout (dBm) = Pin (dBm) + Gain (dB)")
     log("")
-    log("Pout/ch = Maximum output power – 10*log10 (N) = %.2f dBm" % (
+    log("Pout/ch = Maximum output power – 10*log10 (N) = %.4f dBm" % (
         calc_outputs['pout_per_channel']
     ))
     log("")
     log("Per channel output power is")
-    log("Pin (dBm) + Gain (dB) = %.2f dBm" % (
+    log("Pin (dBm) + Gain (dB) = %.4f dBm" % (
         calc_outputs['pout_per_channel']
     ))
     log("")
-    log("In %d channel DWDM link, for single channel calculation the maximum output should be %.2f dBm." % (
+    log("In %d channel DWDM link, for single channel calculation the maximum output should be %.4f dBm." % (
         user_inputs['num_channel'],
         calc_outputs['pout_per_channel']
     ))
-    log("Gain range of the amplifier should be in the range of %.1f to %.1f" % (
+    log("Gain range of the amplifier should be in the range of %.4f to %.4f" % (
         df_edfa_spec.loc['Minimum Gain (G)', 'Power Values'],
         df_edfa_spec.loc['Maximum Gain (G)', 'Power Values']
     ))
@@ -555,14 +555,14 @@ def calc_log_total_link_length():
         )
     })
     log("Length of the whole link", color="green")
-    log("Length of L1 = %.1f km" % (
+    log("Length of L1 = %.4f km" % (
         user_inputs['l1_length']
     ))
-    log("Length of L2 = %.1f km" % (
+    log("Length of L2 = %.4f km" % (
         user_inputs['l2_length']
     ))
     log("")
-    log("Total length of the link = %.1f km" % (
+    log("Total length of the link = %.4f km" % (
         calc_outputs['total_link_length']
     ))
     log("")
@@ -584,7 +584,7 @@ def calc_log_dispersion():
         constraints['dispersion_max']
     ))
     log("")
-    log("Total dispersion value of the link = %.1f ps/nm" % (
+    log("Total dispersion value of the link = %.4f ps/nm" % (
         calc_outputs['total_dispersion']
     ))
     log("")
@@ -601,7 +601,7 @@ def calc_log_dispersion():
                 calc_outputs['residual_dispersion'] = residual_dispersion
 
                 # logging
-                log("Residual Dispersion = %.1f ps/nm + (2 x %.1f) = %.1f ps/nm" % (
+                log("Residual Dispersion = %.4f ps/nm + (2 x %.4f) = %.4f ps/nm" % (
                     calc_outputs['total_dispersion'],
                     dcm,
                     calc_outputs['residual_dispersion']
@@ -615,7 +615,7 @@ def calc_log_dispersion():
         calc_outputs['residual_dispersion'] = calc_outputs['total_dispersion']
 
         # logging
-        log("Residual Dispersion = %.1f ps/nm – No DCM = %.1f ps/nm" % (
+        log("Residual Dispersion = %.4f ps/nm – No DCM = %.4f ps/nm" % (
             calc_outputs['total_dispersion'],
             calc_outputs['residual_dispersion']
         ))
@@ -644,17 +644,17 @@ def calc_log_span_loss():
     # Logging
     log("Span Lossess", color="green")
     log("")
-    log("Span 1 losses= (attenuation coefficient of L1 x length) + (2 x additional connector losses) + DCM losses = %.1f dB" %(
+    log("Span 1 losses= (attenuation coefficient of L1 x length) + (2 x additional connector losses) + DCM losses = %.4f dB" %(
         calc_outputs['span_1_loss']
     ))
     log("")
-    log("Span 2 losses= (attenuation coefficient of L2 x length) + (2 x additional connector losses) + DCM losses = %.1f dB" %(
+    log("Span 2 losses= (attenuation coefficient of L2 x length) + (2 x additional connector losses) + DCM losses = %.4f dB" %(
         calc_outputs['span_2_loss']
     ))
     log("")
 
 def ask_site_degrees():
-    log("Minimum transmitter power of the link is %.1f dBm and minimum receiver sensitivity is %.1f dBm" % (
+    log("Minimum transmitter power of the link is %.4f dBm and minimum receiver sensitivity is %.4f dBm" % (
         user_inputs['transmit_pow_min'],
         user_inputs['receive_pow_min']
     ))
@@ -688,7 +688,7 @@ def ask_calc_gain():
         'name': 'input_power',
         'message': 'Enter input power: ',
         'filter': lambda val: float(val),
-        'validate': lambda val: validate_fraction(val) and user_inputs['transmit_pow_min'] <= float(val) <= user_inputs['transmit_pow_max'] or 'Input must be number and between %.1f and %.1f' % (
+        'validate': lambda val: validate_fraction(val) and user_inputs['transmit_pow_min'] <= float(val) <= user_inputs['transmit_pow_max'] or 'Input must be number and between %.4f and %.4f' % (
             user_inputs['transmit_pow_min'],
             user_inputs['transmit_pow_max']
         )
@@ -738,20 +738,20 @@ def ask_calc_gain():
 
     # Logging
     log("Gain calculation of B1:", color="green")
-    log("B1 I/P power = (Pin1 – MDU Loss – D/L ROADM Loss – Degree ROADM Loss) = %.2f dBm" % (
+    log("B1 I/P power = (Pin1 – MDU Loss – D/L ROADM Loss – Degree ROADM Loss) = %.4f dBm" % (
         power_in_b1
     ))
     # TODO: check gain range
-    log("Therefore, B1 Gain = %.2f dB" % (
+    log("Therefore, B1 Gain = %.4f dB" % (
         b1_gain
     ))
     log("")
     log("Gain calculation of P1:", color="green")
-    log("P1 I/P power = B1 O/P power – Span 1 Loss = %.2f dBm" % (
+    log("P1 I/P power = B1 O/P power – Span 1 Loss = %.4f dBm" % (
         power_in_p1
     ))
 
-    log("Therefore, P1 Gain = %.2f dB" % (
+    log("Therefore, P1 Gain = %.4f dB" % (
         p1_gain
     ))
     log("")
@@ -761,19 +761,19 @@ def ask_calc_gain():
         place_lineamp(df_fiber_spec_l1, '1')
 
     log("Gain calculation of B2:", color="green")
-    log("B2 Input Power = (P1 O/P power – Degree ROADM 1 – DegreeROADM 2) = %.2f dBm" % (
+    log("B2 Input Power = (P1 O/P power – Degree ROADM 1 – DegreeROADM 2) = %.4f dBm" % (
         power_in_b2
     ))
     # TODO: check gain range
-    log("Therefore, B1 Gain = %.2f dB" % (
+    log("Therefore, B1 Gain = %.4f dB" % (
         b2_gain
     ))
     log("")
     log("Gain calculation of P2:", color="green")
-    log("P2 I/P power = B2 O/P power – Span 2 Loss = %.2f dBm" % (
+    log("P2 I/P power = B2 O/P power – Span 2 Loss = %.4f dBm" % (
         power_in_p2
     ))
-    log("Therefore, P2 Gain = %.2f dB" % (
+    log("Therefore, P2 Gain = %.4f dB" % (
         p2_gain
     ))
     log("")
@@ -844,14 +844,14 @@ def place_lineamp(df, line_number):
 
     # Logging
     log("Line amplifier need to add in the L%s link." % (line_number))
-    log("Amplifier is placed at a point where minimum gain can be achieved i.e. %.1f dB" % (
+    log("Amplifier is placed at a point where minimum gain can be achieved i.e. %.4f dB" % (
         df_edfa_spec.loc['Minimum Gain (G)', 'Power Values']
     ))
     log("")
-    log("Line amp O/P power = Gain(dB) + Line amp input power = %.1f dBm" % (
+    log("Line amp O/P power = Gain(dB) + Line amp input power = %.4f dBm" % (
         calc_outputs['pout_per_channel']
     ))
-    log("Line amp input power (dB) = %.1f dB" % (
+    log("Line amp input power (dB) = %.4f dB" % (
         calc_outputs['power_in_lineamp']
     ))
     log("")
@@ -859,38 +859,38 @@ def place_lineamp(df, line_number):
         line_number, line_number, line_number
     ), color="green")
     log("")
-    log("L%s1 fiber loss = B%s O/p power – (Line amp input power + (2 x additional connector loss)) = %.1f dB" % (
+    log("L%s1 fiber loss = B%s O/p power – (Line amp input power + (2 x additional connector loss)) = %.4f dB" % (
         line_number,
         line_number,
         calc_outputs['l'+line_number+'1_fiber_loss']
     ))
     log("")
-    log("Length of L%s1 = L%s1 Loss (dB) / α (dB/km) = %.1f km" % (
+    log("Length of L%s1 = L%s1 Loss (dB) / α (dB/km) = %.4f km" % (
         line_number,
         line_number,
         calc_outputs['l'+line_number+'1_length']
     ))
     log("")
-    log("Length of L%s2 = length of L%s – length of L%s1= %.1f km" % (
+    log("Length of L%s2 = length of L%s – length of L%s1= %.4f km" % (
         line_number,
         line_number,
         line_number,
         calc_outputs['l'+line_number+'2_length']
     ))
     log("")
-    log("L%s2 span loss = Fiber L%s2 loss + DCM loss + (2 x additinal connector loss) = %.1f dB" %(
+    log("L%s2 span loss = Fiber L%s2 loss + DCM loss + (2 x additinal connector loss) = %.4f dB" %(
         line_number,
         line_number,
         calc_outputs['l'+line_number+'2_span_loss']
     ))
     log("")
-    log("P%s I/P power = LA O/P power – Total Span Loss of L%s2 = %.1f dBm" %(
+    log("P%s I/P power = LA O/P power – Total Span Loss of L%s2 = %.4f dBm" %(
         line_number,
         line_number,
         calc_outputs['p'+line_number+'_input_power']
     ))
     log("")
-    log("Thus Gain of P%s = %.1f dB" % (
+    log("Thus Gain of P%s = %.4f dB" % (
         line_number,
         calc_outputs['p'+line_number+'_gain']
     ))
@@ -909,7 +909,7 @@ def calc_log_receive_end():
     log("After calculating I/P, O/P and gain power values for EDFA the last step remaining is calculating the input power at the receiving end connected to the De-Mux.")
     log("")
     log("Receiving End", color="green")
-    log("I/P to receiving end = (P2 O/P power – Degree ROADM Loss – D/L ROADM Loss – MDU Loss) = %.1f dBm" % (
+    log("I/P to receiving end = (P2 O/P power – Degree ROADM Loss – D/L ROADM Loss – MDU Loss) = %.4f dBm" % (
         calc_outputs['power_receive']
     ))
     log("")
